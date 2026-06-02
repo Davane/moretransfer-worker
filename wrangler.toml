@@ -56,7 +56,7 @@ class_name = "ZipContainerDO"
 # Vars
 [env.dev.vars]
 # http://localhost:3000
-WEB_API_BASE_URL = "https://9b35-208-131-169-242.ngrok-free.app" 
+WEB_API_BASE_URL = "http://localhost:3000" 
 ZIP_OUTPUT_PREFIX = "bundle"
 ZIP_OUTPUT_FILE_NAME = "moretransfer_bundle_dev"
 MAX_FILES = "500"
@@ -88,7 +88,7 @@ new_sqlite_classes = ["JobManagerDO", "ZipSemaphoreDO", "ZipContainerDO"]
 
 # Cron Triggers
 # [env.dev.triggers]
-# crons = ["0 */3 * * *", "0 9 * * *", "*/30 * * * *"]
+# crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "0 9 * * *", "*/30 * * * *"]
 
 # -----------------------------
 # PROD ENVIRONMENT
@@ -188,4 +188,4 @@ new_sqlite_classes = ["JobManagerDO", "ZipSemaphoreDO", "ZipContainerDO"]
 
 # Cron Triggers
 [env.prod.triggers]
-crons = ["0 */3 * * *", "0 9 * * *", "*/30 * * * *"] # cleanup + daily expiry + review digest poller
+crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "0 9 * * *", "*/30 * * * *"] # expired transfers + abandoned uploads (staggered) + daily expiry + review digest

@@ -82,6 +82,17 @@ class WebAPIService {
     });
   }
 
+  async sendCleanupAbandonedUploadsRequest(body: Record<string, any>) {
+    const url = `${this._baseUrl}/api/external/cron/cleanup-abandoned-uploads`;
+    const headers = await this.getHeaderSignature(body);
+
+    return await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+  }
+
   async sendEmailNotificationRequest(body: Record<string, any>) {
     const url = `${this._baseUrl}/api/external/cron/email-notifications`;
     const headers = await this.getHeaderSignature(body);

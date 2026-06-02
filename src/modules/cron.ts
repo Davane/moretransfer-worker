@@ -23,6 +23,20 @@ export class CronHandler {
       });
   }
 
+  async handleCleanupAbandonedUploadsCron(webAPIService: WebAPIService, timestamp: number) {
+    const body = { trigger: "scheduled", timestamp };
+
+    return await webAPIService
+      .sendCleanupAbandonedUploadsRequest(body)
+      .then(async (res) => {
+        const text = await res.text();
+        console.log(`[scheduled] Abandoned uploads cleanup response: ${res.status}`, text);
+      })
+      .catch((err) => {
+        console.error("[scheduled] Abandoned uploads cleanup request failed:", err);
+      });
+  }
+
   async handleExpiryReminderCron(webAPIService: WebAPIService, timestamp: number) {
     const body = {
       type: EmailNotificationType.TransferExpiryReminder,
