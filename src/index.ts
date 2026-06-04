@@ -190,6 +190,12 @@ export default {
         break;
       }
 
+      // Every 6 hours at 01:00, 07:00, 13:00, 19:00 UTC (offset from */3 cleanup so both runs don't overlap)
+      case "0 1,7,13,19 * * *": {
+        ctx.waitUntil(cronHandler.handleCleanupAbandonedUploadsCron(webAPIService, now));
+        break;
+      }
+
       // Daily at 9 AM UTC
       case "0 9 * * *": {
         ctx.waitUntil(cronHandler.handleExpiryReminderCron(webAPIService, now));
