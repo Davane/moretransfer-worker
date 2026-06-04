@@ -1,10 +1,9 @@
-import { Env } from "../lib/types/types";
+import { Env, QueueMessageType } from "../lib/types/types";
 import { WebAPIService } from "./web-api-service";
 
-enum EmailNotificationType {
-  TransferExpiryReminder = "transfer-expiry-reminder",
-  ReviewCommentDigest = "review-comment-digest",
-}
+type ScheduleResponse = {
+  jobIds?: string[];
+};
 
 export class CronHandler {
   constructor(private readonly env: Env) {}
@@ -37,39 +36,55 @@ export class CronHandler {
       });
   }
 
-  async handleExpiryReminderCron(webAPIService: WebAPIService, timestamp: number) {
-    const body = {
-      type: EmailNotificationType.TransferExpiryReminder,
-      trigger: "scheduled",
-      timestamp,
-    };
+  async handleNotificationScheduleCron(webAPIService: WebAPIService, timestamp: number) {
+    const body = { trigger: "scheduled", timestamp };
+    const correlationId = crypto.randomUUID();
+    try {
+      const res = await webAPIService.sendNotificationScheduleRequest(body, correlationId);
+      const text = await res.text();
 
-    return await webAPIService
-      .sendEmailNotificationRequest(body)
-      .then(async (res) => {
-        const text = await res.text();
-        console.log(`[scheduled] Expiry reminder response: ${res.status}`, text);
-      })
-      .catch((err) => {
-        console.error("[scheduled] Expiry reminder request failed:", err);
+      if (!res.ok) {
+        console.error(`[notification-schedule] Notification schedule failed`, {
+          text,
+          status: res.status,
+          correlationId,
+        });
+        return;
+      }
+
+      let payload: ScheduleResponse = {};
+      try {
+        payload = JSON.parse(text) as ScheduleResponse;
+      } catch (parseErr) {
+        console.error("[notification-schedule] Notification schedule response parse failed:", parseErr, {
+          text,
+          correlationId,
+        });
+        return;
+      }
+
+      const jobIds = Array.isArray(payload.jobIds)
+        ? payload.jobIds.filter((id): id is string => typeof id === "string")
+        : [];
+
+      console.log(`[notification-schedule] Notification schedule`, {
+        jobIds,
+        jobIdsLength: jobIds.length,
+        status: res.status,
+        correlationId,
       });
-  }
 
-  async handleReviewCommentDigestCron(webAPIService: WebAPIService, timestamp: number) {
-    const body = {
-      type: EmailNotificationType.ReviewCommentDigest,
-      trigger: "scheduled",
-      timestamp,
-    };
-
-    return await webAPIService
-      .sendEmailNotificationRequest(body)
-      .then(async (res) => {
-        const text = await res.text();
-        console.log(`[scheduled] Review comment digest response: ${res.status}`, text);
-      })
-      .catch((err) => {
-        console.error("[scheduled] Review comment digest request failed:", err);
-      });
+      for (const jobId of jobIds) {
+        await this.env.QUEUE_WORKER_MAIN.send({
+          type: QueueMessageType.NOTIFICATION_PROCESS,
+          data: {
+            jobId,
+            correlationId,
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[notification-schedule] Notification schedule request failed:", { correlationId }, err);
+    }
   }
 }

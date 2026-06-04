@@ -93,13 +93,32 @@ class WebAPIService {
     });
   }
 
-  async sendEmailNotificationRequest(body: Record<string, any>) {
-    const url = `${this._baseUrl}/api/external/cron/email-notifications`;
+  async sendNotificationScheduleRequest(body: Record<string, unknown>, correlationId: string) {
+    const url = `${this._baseUrl}/api/external/notifications/schedule`;
     const headers = await this.getHeaderSignature(body);
 
     return await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
+      headers: {
+        "Content-Type": "application/json",
+        "x-correlation-id": correlationId,
+        ...headers,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async sendNotificationProcessRequest(body: Record<string, unknown>, correlationId: string) {
+    const url = `${this._baseUrl}/api/external/notifications/process`;
+    const headers = await this.getHeaderSignature(body);
+
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-correlation-id": correlationId,
+        ...headers,
+      },
       body: JSON.stringify(body),
     });
   }

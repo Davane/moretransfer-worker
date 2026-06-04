@@ -108,6 +108,7 @@ export enum QueueMessageType {
   ZIP = "zip",
   ZIP_V2_TICK = "zip_v2_tick",
   STREAM_INGEST = "stream_ingest",
+  NOTIFICATION_PROCESS = "notification_process",
 }
 
 interface ZipMessage {
@@ -125,7 +126,16 @@ interface StreamIngestMessage {
   data: StreamIngestJob;
 }
 
-export type QueueMessage = ZipMessage | ZipV2TickMessage | StreamIngestMessage;
+export interface NotificationProcessMessage {
+  type: QueueMessageType.NOTIFICATION_PROCESS;
+  data: { jobId: string; correlationId: string };
+}
+
+export type QueueMessage =
+  | ZipMessage
+  | ZipV2TickMessage
+  | StreamIngestMessage
+  | NotificationProcessMessage;
 
 
 // ------------------------------------------------------------------------------

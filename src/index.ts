@@ -1,5 +1,6 @@
 import {
   Env,
+  NotificationProcessMessage,
   QueueMessage,
   QueueMessageType,
   RequestPath,
@@ -13,6 +14,7 @@ import { verifyHmac } from "./lib/crypto";
 import { WebAPIService } from "./modules/web-api-service";
 import { Zipper } from "./modules/zipper";
 import { CronHandler } from "./modules/cron";
+import { processNotificationMessage } from "./modules/notification-processor";
 import { resolveOutputKey, writeZipManifest, toBool } from "./modules/job-manifest";
 import { JobManagerDO } from "./modules/job-manager-do";
 import { ZipSemaphoreDO } from "./modules/semaphore-do";
@@ -196,15 +198,9 @@ export default {
         break;
       }
 
-      // Daily at 9 AM UTC
-      case "0 9 * * *": {
-        ctx.waitUntil(cronHandler.handleExpiryReminderCron(webAPIService, now));
-        break;
-      }
-
-      // Every 30 minutes
-      case "*/30 * * * *": {
-        ctx.waitUntil(cronHandler.handleReviewCommentDigestCron(webAPIService, now));
+      // Every 15 minutes — notification schedule (transfer expiry, review digest, etc.)
+      case "*/15 * * * *": {
+        ctx.waitUntil(cronHandler.handleNotificationScheduleCron(webAPIService, now));
         break;
       }
 
@@ -234,6 +230,13 @@ export default {
         // Handle video stream ingest jobs
         case QueueMessageType.STREAM_INGEST:
           await new StreamIngestor(env).ingest(msg);
+          break;
+
+        case QueueMessageType.NOTIFICATION_PROCESS:
+          await processNotificationMessage(
+            msg as Message<NotificationProcessMessage>,
+            webAPIService,
+          );
           break;
 
         default:
