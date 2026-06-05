@@ -1,5 +1,5 @@
-import { Env, ZipJob, ZipJobManifest } from "../lib/types/types";
-import { resolveNameInZip } from "../lib/utils";
+import { Env, ZipJob, ZipJobManifest } from "../../lib/types";
+import { resolveNameInZip } from "../../lib/utils";
 
 export const DEFAULT_MANIFEST_PREFIX = "manifests";
 

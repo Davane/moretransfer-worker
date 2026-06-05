@@ -1,6 +1,6 @@
-import { WebAPIService } from "./web-api-service";
+import { WebAPIService } from "../web-api-service";
 import { toInt } from "./job-manifest";
-import { MissingMultipartPartsError, ContainerRunError } from "../lib/errors";
+import { MissingMultipartPartsError, ContainerRunError } from "../../lib/errors";
 import {
   Env,
   TransferStatus,
@@ -17,7 +17,7 @@ import {
   ZipV2LifecycleEvent,
   UploadedPart,
   CompletePart,
-} from "../lib/types/types";
+} from "../../lib/types";
 import {
   nowMs,
   jsonResponse,
@@ -28,7 +28,7 @@ import {
   classifyContainerFailure,
   optionalTriStateBoolFromSql,
   sqlIntegerFromOptionalTriStateBool,
-} from "../lib/utils";
+} from "../../lib/utils";
 import {
   DEFAULT_PART_SIZE,
   ZIP_VERSION,
@@ -37,7 +37,7 @@ import {
   DEFAULT_RETRY_BASE_DELAY_SECONDS,
   DEFAULT_BUNDLE_CLEANUP_TTL_DAYS,
   DEFAULT_TICK_INTERVAL_MS,
-} from "../lib/constants";
+} from "../../lib/constants";
 
 async function clearAlarmIfSupported(storage: DurableObjectStorage) {
   // deleteAlarm exists in newer runtime APIs; keep best-effort compatibility.

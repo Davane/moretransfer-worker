@@ -6,15 +6,15 @@ import {
   QueueMessageType,
   RequestPath,
   ZipV2TickMessage,
-} from "./lib/types/types";
+} from "./lib/types";
 import { verifyRequest } from "./lib/crypto";
 import { WebAPIService } from "./modules/web-api-service";
 import { CronHandler } from "./modules/cron";
 import { processNotificationBatch } from "./modules/notification/notification-processor";
-import { handleCompressFilesRequest, processZipTick } from "./modules/zip-processor";
-import { JobManagerDO } from "./modules/job-manager-do";
-import { ZipSemaphoreDO } from "./modules/semaphore-do";
-import { ZipContainerDO } from "./modules/zip-container";
+import { handleCompressFilesRequest, processZipTick } from "./modules/zip/zip-processor";
+import { JobManagerDO } from "./modules/zip/job-manager-do";
+import { ZipSemaphoreDO } from "./modules/zip/semaphore-do";
+import { ZipContainerDO } from "./modules/zip/zip-container";
 import { StreamIngestor } from "./modules/stream/stream-ingestor";
 
 // Export the Durable Objects for use in other files

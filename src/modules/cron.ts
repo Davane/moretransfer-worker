@@ -1,4 +1,4 @@
-import { Env, QueueMessageType } from "../lib/types/types";
+import { Env, QueueMessageType } from "../lib/types";
 import { WebAPIService } from "./web-api-service";
 
 type ScheduleResponse = {

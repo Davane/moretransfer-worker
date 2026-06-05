@@ -1,4 +1,4 @@
-import { Env } from "./types/types";
+import { Env } from "./types";
 
 /**
  * This file created and verifies HMAC signatures on edge runtime

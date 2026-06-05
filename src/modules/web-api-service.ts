@@ -1,6 +1,6 @@
 import { COMPANY_NAME } from "../lib/constants";
 import { createHmacSha256Hex } from "../lib/crypto";
-import { TransferUpdateRequest } from "../lib/types/types";
+import { TransferUpdateRequest } from "../lib/types";
 import { createSafeUploadKey, fetchWithCredentials, runWithRetries, slugify } from "../lib/utils";
 
 const STATUS_RETRY_ATTEMPTS = 7;

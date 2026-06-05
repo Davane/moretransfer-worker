@@ -2,7 +2,7 @@ import type {
   NotificationProcessMessage,
   ProcessBatchResult,
   ProcessJobResult,
-} from "../../lib/types/types";
+} from "../../lib/types";
 import { WebAPIService } from "../web-api-service";
 
 const RETRY_DELAY_SECONDS = 60;

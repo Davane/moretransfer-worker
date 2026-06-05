@@ -7,9 +7,9 @@ import {
   ZipV2LifecycleEvent,
   ZipV2TickMessage,
   ZipV2TickMessageData,
-} from "../lib/types/types";
+} from "../../lib/types";
 import { resolveOutputKey, writeZipManifest } from "./job-manifest";
-import { WebAPIService } from "./web-api-service";
+import { WebAPIService } from "../web-api-service";
 
 export async function handleCompressFilesRequest(req: Request, env: Env): Promise<Response> {
   const body = await req.json<ZipJob>();
