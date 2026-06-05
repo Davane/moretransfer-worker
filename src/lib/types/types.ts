@@ -6,8 +6,7 @@ export interface Env {
   QUEUE_WORKER_MAIN: Queue;
   QUEUE_NOTIFICATIONS: Queue;
 
-  // Durable Object
-  ZipLocks: DurableObjectNamespace;
+  // Durable Objects
   JobManager: DurableObjectNamespace;
   ZipSemaphore: DurableObjectNamespace;
   ZipContainer: DurableObjectNamespace;
@@ -22,8 +21,7 @@ export interface Env {
   BASE_RETRY_DELAY_SECONDS: number;
   SKIP_REQUEST_VERIFICATION: boolean | undefined;
 
-  // ZIP v2 (containers)
-  ZIP_USE_CONTAINERS: boolean | undefined;
+  // ZIP (containers)
   ZIP_GLOBAL_CONCURRENCY: string | undefined; // default 1
   ZIP_MANIFEST_PREFIX: string | undefined; // default "manifests"
   ZIP_PART_SIZE_BYTES: string | undefined; // default 134217728 (128 MiB)
@@ -106,16 +104,10 @@ export interface TransferUpdateRequest {
 }
 
 export enum QueueMessageType {
-  ZIP = "zip",
   ZIP_V2_TICK = "zip_v2_tick",
   STREAM_INGEST = "stream_ingest",
   NOTIFICATION_PROCESS = "notification_process",
 }
-
-// interface ZipMessage {
-//   type: QueueMessageType.ZIP;
-//   data: ZipJob;
-// }
 
 export interface ZipV2TickMessage {
   type: QueueMessageType.ZIP_V2_TICK;
@@ -150,11 +142,7 @@ export const NOTIFICATION_QUEUE_NAMES = new Set([
   "moretransfer-notification-queue",
 ]);
 
-export type QueueMessage =
-  // | ZipMessage
-  | ZipV2TickMessage
-  | StreamIngestMessage
-  | NotificationProcessMessage;
+export type QueueMessage = ZipV2TickMessage | StreamIngestMessage | NotificationProcessMessage;
 
 
 // ------------------------------------------------------------------------------
@@ -162,7 +150,7 @@ export type QueueMessage =
 // ------------------------------------------------------------------------------
 
 /**
- * ZIP v2 (containers): centralized lifecycle and retries.
+ * ZIP (containers): centralized lifecycle and retries.
  *
  * `JobManagerDO` is the single scheduler. It owns the SQLite job state and
  * `storage.setAlarm()`, and it is the only place where business backoff and

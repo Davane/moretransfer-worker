@@ -1,17 +1,15 @@
 # Moretransfer Worker
 
-A Cloudflare Worker that powers background processing for [Moretransfer](https://www.moretransfer.com): **ZIP v2 bundling** (Cloudflare Containers), **Cloudflare Stream ingest**, **scheduled notifications**, and **transfer cleanup** crons. Jobs are processed asynchronously via Cloudflare Queues and Durable Objects.
+A Cloudflare Worker that powers background processing for [Moretransfer](https://www.moretransfer.com): **ZIP bundling** (Cloudflare Containers), **Cloudflare Stream ingest**, **scheduled notifications**, and **transfer cleanup** crons. Jobs are processed asynchronously via Cloudflare Queues and Durable Objects.
 
 ## Features
 
-- **ZIP v2 (containers)**: Resumable ZIP64 STORE archives built in a Go container, coordinated by `JobManagerDO` with SQLite checkpointing and R2 multipart uploads
+- **ZIP (containers)**: Resumable ZIP64 STORE archives built in a Go container, coordinated by `JobManagerDO` with SQLite checkpointing and R2 multipart uploads
 - **Global concurrency control**: `ZipSemaphoreDO` limits how many container ZIP jobs run at once
 - **Cloudflare Stream ingest**: Copies video from R2 presigned URLs into Cloudflare Stream for preview playback
 - **Notification workflow**: Cron-driven schedule → dedicated notification queue → batched delivery via the Web API
 - **Transfer maintenance crons**: Expired-transfer cleanup and abandoned-upload cleanup
 - **HMAC-authenticated HTTP producers**: Signed POST endpoints for the Next.js API
-
-> **ZIP v1 is deprecated.** The legacy Worker-side ZIP64 writer (`src/modules/zipper.ts`, `ZipLocksDO`) is no longer enqueued. Production uses `ZIP_USE_CONTAINERS=true` (ZIP v2).
 
 ## Architecture
 
@@ -43,9 +41,9 @@ A Cloudflare Worker that powers background processing for [Moretransfer](https:/
 | Component | Role |
 |-----------|------|
 | **HTTP producer** | Accepts signed POSTs to `/compress-files` and `/stream-ingest` |
-| **Main queue** (`QUEUE_WORKER_MAIN`) | ZIP v2 tick triggers and Stream ingest jobs |
+| **Main queue** (`QUEUE_WORKER_MAIN`) | ZIP tick triggers and Stream ingest jobs |
 | **Notification queue** (`QUEUE_NOTIFICATIONS`) | Batched notification delivery jobs |
-| **JobManagerDO** | ZIP v2 lifecycle: checkpointing, retries, multipart finalize, cleanup TTL |
+| **JobManagerDO** | ZIP lifecycle: checkpointing, retries, multipart finalize, cleanup TTL |
 | **ZipSemaphoreDO** | Global cap on concurrent container ZIP work |
 | **ZipContainerDO** | Cloudflare Container (Go) that streams ZIP64 STORE output to R2 |
 | **Cron handler** | Expired transfers, abandoned uploads, notification scheduling |
@@ -76,11 +74,10 @@ Set in `wrangler.toml` per environment (`dev` / `prod`) or via the Cloudflare da
 | `SECRET_KEY` | HMAC secret shared with the Web API |
 | `WEB_API_BASE_URL` | Next.js API base URL |
 
-**ZIP v2 (containers)**
+**ZIP (containers)**
 
 | Variable | Description |
 |----------|-------------|
-| `ZIP_USE_CONTAINERS` | Must be `true` for ZIP v2 (v1 path is disabled) |
 | `ZIP_GLOBAL_CONCURRENCY` | Max concurrent container ZIP jobs (dev: `1`, prod: `3`) |
 | `ZIP_MANIFEST_PREFIX` | R2 prefix for job manifests (default: `manifests`) |
 | `ZIP_PART_SIZE_BYTES` | Multipart part size (default: 128 MiB) |
@@ -101,7 +98,7 @@ Set in `wrangler.toml` per environment (`dev` / `prod`) or via the Cloudflare da
 - **Queues**:
   - Main worker queue + DLQ (`QUEUE_WORKER_MAIN`)
   - Notification queue + DLQ (`QUEUE_NOTIFICATIONS`)
-- **Durable Objects**: `JobManagerDO`, `ZipSemaphoreDO`, `ZipContainerDO` (and legacy `ZipLocksDO` for v1 migrations)
+- **Durable Objects**: `JobManagerDO`, `ZipSemaphoreDO`, `ZipContainerDO`
 - **Container**: `ZipContainerDO` image from `container/Dockerfile`
 
 ### Cron triggers (prod)
@@ -130,7 +127,7 @@ wrangler secret put SECRET_KEY --env prod
 
 ## Usage
 
-### Enqueue a ZIP job (v2)
+### Enqueue a ZIP job
 
 POST to `/compress-files` with a JSON body matching `ZipJob`:
 
@@ -154,7 +151,7 @@ POST to `/compress-files` with a JSON body matching `ZipJob`:
 - `createdBy` (optional): Audit field; stored in ZIP object metadata
 - `files` (optional): R2 keys mapped to `relativePath` inside the ZIP
 
-**ZIP v2 flow**
+**ZIP flow**
 
 1. Worker writes a manifest to R2 (`manifests/<jobId>.json`)
 2. `JobManagerDO` starts the job (`jobId` = `transferId`)
@@ -236,19 +233,17 @@ moretransfer-worker/
 ├── src/
 │   ├── index.ts             # fetch / queue / scheduled handlers
 │   ├── lib/
-│   │   ├── zip64/           # Legacy v1 ZIP writer (deprecated)
 │   │   └── types/types.ts
 │   └── modules/
-│       ├── job-manager-do.ts    # ZIP v2 coordinator
+│       ├── job-manager-do.ts    # ZIP coordinator
 │       ├── zip-container.ts     # Container DO + R2 outbound proxy
 │       ├── semaphore-do.ts        # Global ZIP concurrency
+│       ├── zip-processor.ts
 │       ├── stream-ingestor.ts     # Cloudflare Stream copy
 │       ├── notification-processor.ts
 │       ├── cron.ts
 │       ├── job-manifest.ts
-│       ├── web-api-service.ts
-│       ├── zipper.ts              # Legacy v1 (deprecated)
-│       └── ziplock-do-v1.ts       # Legacy v1 locks (deprecated)
+│       └── web-api-service.ts
 ├── scripts/
 ├── package.json
 ├── wrangler.toml
@@ -264,7 +259,6 @@ moretransfer-worker/
 ## Limitations
 
 - **STORE only** — no deflate, encryption, or symlinks in the ZIP writer
-- **ZIP v1 disabled** — only ZIP v2 (containers) is active when `ZIP_USE_CONTAINERS=true`
 - **MAX_FILES** / **MAX_ZIP_BYTES** enforced at manifest creation
 - Large jobs depend on R2 throughput, container availability, and Worker CPU limits (`cpu_ms` in `wrangler.toml`)
 - Stream ingest requires Cloudflare Stream API credentials and respects Stream minimum retention (30 days) for scheduled deletion
@@ -283,11 +277,11 @@ Suggested cases: single file under 4 GiB; single file over 4 GiB; many small fil
 
 ## Error handling
 
-- **Main queue**: Infrastructure failures on ZIP v2 ticks retry with delay; business backoff is handled inside `JobManagerDO` via `nextActionAtMs` and alarms
+- **Main queue**: Infrastructure failures on ZIP ticks retry with delay; business backoff is handled inside `JobManagerDO` via `nextActionAtMs` and alarms
 - **Notification queue**: 5xx / parse errors retry the batch; 4xx acks; per-job `retry` status retries individual messages
 - **Stream ingest**: Exponential backoff on failure
 - **Dead letter queues**: Permanently failed messages (see `wrangler.toml`)
-- **ZIP v2 cleanup**: Terminal jobs purge DO state after `BUNDLE_CLEANUP_TTL_DAYS`; failed jobs best-effort abort multipart uploads
+- **ZIP cleanup**: Terminal jobs purge DO state after `BUNDLE_CLEANUP_TTL_DAYS`; failed jobs best-effort abort multipart uploads
 
 ## License
 

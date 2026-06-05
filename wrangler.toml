@@ -48,10 +48,6 @@ queue = "yoootransfer-notification-queue-dev"
 
 # Durable Objects
 [[env.dev.durable_objects.bindings]]
-name = "ZipLocks"
-class_name = "ZipLocksDO"
-
-[[env.dev.durable_objects.bindings]]
 name = "JobManager"
 class_name = "JobManagerDO"
 
@@ -74,8 +70,7 @@ BASE_RETRY_DELAY_SECONDS = 30
 MAX_ZIP_BYTES = "68719476736" # 100 GiB
 STREAM_REQUIRE_SIGNED_URLS = true
 
-# ZIP v2 (containers)
-ZIP_USE_CONTAINERS = true
+# ZIP (containers)
 ZIP_GLOBAL_CONCURRENCY = "1"
 ZIP_MANIFEST_PREFIX = "manifests"
 ZIP_PART_SIZE_BYTES = "134217728" # 128 MiB
@@ -95,6 +90,10 @@ new_classes = ["ZipLocksDO"]
 [[env.dev.migrations]]
 tag = "v2"
 new_sqlite_classes = ["JobManagerDO", "ZipSemaphoreDO", "ZipContainerDO"]
+
+[[env.dev.migrations]]
+tag = "v3"
+deleted_classes = ["ZipLocksDO"]
 
 # Cron Triggers
 # [env.dev.triggers]
@@ -147,10 +146,6 @@ queue = "moretransfer-notification-queue"
 
 # Durable Objects
 [[env.prod.durable_objects.bindings]]
-name = "ZipLocks"
-class_name = "ZipLocksDO"
-
-[[env.prod.durable_objects.bindings]]
 name = "JobManager"
 class_name = "JobManagerDO"
 
@@ -180,8 +175,7 @@ ZIP_OUTPUT_FILE_NAME = "moretransfer_bundle"
 MAX_FILES = "500"
 MAX_ZIP_BYTES = "68719476736" # 64 GiB
 
-# ZIP v2 (containers)
-ZIP_USE_CONTAINERS = true
+# ZIP (containers)
 ZIP_GLOBAL_CONCURRENCY = "3"
 ZIP_MANIFEST_PREFIX = "manifests"
 ZIP_PART_SIZE_BYTES = "134217728" # 128 MiB
@@ -205,6 +199,10 @@ new_classes = ["ZipLocksDO"]
 [[env.prod.migrations]]
 tag = "v2"
 new_sqlite_classes = ["JobManagerDO", "ZipSemaphoreDO", "ZipContainerDO"]
+
+[[env.prod.migrations]]
+tag = "v3"
+deleted_classes = ["ZipLocksDO"]
 
 # Cron Triggers
 [env.prod.triggers]

@@ -1,5 +1,5 @@
 import { WebAPIService } from "./web-api-service";
-import { toInt, toBool } from "./job-manifest";
+import { toInt } from "./job-manifest";
 import { MissingMultipartPartsError, ContainerRunError } from "../lib/errors";
 import {
   Env,
@@ -31,7 +31,7 @@ import {
 } from "../lib/utils";
 import {
   DEFAULT_PART_SIZE,
-  ZIP_V2_VERSION,
+  ZIP_VERSION,
   DEFAULT_NUMBER_OF_PARTS,
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_RETRY_BASE_DELAY_SECONDS,
@@ -48,7 +48,7 @@ async function clearAlarmIfSupported(storage: DurableObjectStorage) {
 }
 
 /**
- * Coordinates one ZIP v2 job per Durable Object instance (`idFromName(jobId)`).
+ * Coordinates one ZIP job per Durable Object instance (`idFromName(jobId)`).
  * Owns checkpointing, multipart finalization, retries, and cleanup scheduling.
  */
 export class JobManagerDO {
@@ -472,11 +472,6 @@ export class JobManagerDO {
         status: job.status,
         done: job.status === "DONE",
       };
-    }
-
-    const useContainers = toBool(this.env.ZIP_USE_CONTAINERS, false);
-    if (!useContainers) {
-      throw new Error("ZIP v2 tick received but ZIP_USE_CONTAINERS is disabled");
     }
 
     const existingOut = await this.env.OUTPUT_BUCKET.head(checkpoint.outputKey);
@@ -1043,7 +1038,7 @@ export class JobManagerDO {
         jobId,
         transferId: job.transferId,
         manifestKey: checkpoint.manifestKey,
-        zipVersion: ZIP_V2_VERSION,
+        zipVersion: ZIP_VERSION,
       },
     });
 

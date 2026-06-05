@@ -1,4 +1,4 @@
-import { Env, QueueMessage, StreamIngestJob } from "../lib/types/types";
+import { Env, QueueMessage, QueueMessageType, StreamIngestJob } from "../lib/types/types";
 import { calculateExponentialBackoff } from "../lib/utils";
 
 type CloudflareApiResponse<T> = {
@@ -149,5 +149,21 @@ export class StreamIngestor {
     }
 
     return data.result;
+  }
+
+  static async handleStreamIngestRequest(req: Request, env: Env): Promise<Response> {
+    const body = await req.json<StreamIngestJob>();
+    console.log("Stream ingest request:", JSON.stringify(body));
+
+    if (!body?.transferId || !body?.fileId || !body?.r2PresignedGetUrl) {
+      return new Response("Missing required fields", { status: 400 });
+    }
+
+    const message: QueueMessage = { type: QueueMessageType.STREAM_INGEST, data: body };
+    console.log("Sending stream ingest job to queue:", JSON.stringify(message));
+    await env.QUEUE_WORKER_MAIN.send(message);
+    console.log("Stream ingest job queued", JSON.stringify(message));
+
+    return new Response("Enqueued", { status: 202 });
   }
 }
