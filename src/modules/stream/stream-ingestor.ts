@@ -1,5 +1,5 @@
-import { Env, QueueMessage, QueueMessageType, StreamIngestJob } from "../lib/types/types";
-import { calculateExponentialBackoff } from "../lib/utils";
+import { Env, QueueMessage, QueueMessageType, StreamIngestJob } from "../../lib/types/types";
+import { calculateExponentialBackoff } from "../../lib/utils";
 
 type CloudflareApiResponse<T> = {
   success: boolean;

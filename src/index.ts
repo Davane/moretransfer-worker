@@ -10,12 +10,12 @@ import {
 import { verifyRequest } from "./lib/crypto";
 import { WebAPIService } from "./modules/web-api-service";
 import { CronHandler } from "./modules/cron";
-import { processNotificationBatch } from "./modules/notification-processor";
+import { processNotificationBatch } from "./modules/notification/notification-processor";
 import { handleCompressFilesRequest, processZipTick } from "./modules/zip-processor";
 import { JobManagerDO } from "./modules/job-manager-do";
 import { ZipSemaphoreDO } from "./modules/semaphore-do";
 import { ZipContainerDO } from "./modules/zip-container";
-import { StreamIngestor } from "./modules/stream-ingestor";
+import { StreamIngestor } from "./modules/stream/stream-ingestor";
 
 // Export the Durable Objects for use in other files
 export { ContainerProxy } from "@cloudflare/containers";
