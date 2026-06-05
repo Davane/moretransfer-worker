@@ -36,6 +36,16 @@ dead_letter_queue = "yoootransfer-worker-queue-dev-dlq"
 binding = "QUEUE_WORKER_MAIN"
 queue = "yoootransfer-worker-queue-dev"
 
+[[env.dev.queues.consumers]]
+queue = "yoootransfer-notification-queue-dev"
+max_batch_size = 25
+max_retries = 3
+dead_letter_queue = "yoootransfer-worker-queue-dev-dlq"
+
+[[env.dev.queues.producers]]
+binding = "QUEUE_NOTIFICATIONS"
+queue = "yoootransfer-notification-queue-dev"
+
 # Durable Objects
 [[env.dev.durable_objects.bindings]]
 name = "ZipLocks"
@@ -124,6 +134,16 @@ dead_letter_queue = "moretransfer-worker-queue-dlq"
 [[env.prod.queues.producers]]
 binding = "QUEUE_WORKER_MAIN"
 queue = "moretransfer-worker-queue"
+
+[[env.prod.queues.consumers]]
+queue = "moretransfer-notification-queue"
+max_batch_size = 25
+max_retries = 3
+dead_letter_queue = "moretransfer-worker-queue-dlq"
+
+[[env.prod.queues.producers]]
+binding = "QUEUE_NOTIFICATIONS"
+queue = "moretransfer-notification-queue"
 
 # Durable Objects
 [[env.prod.durable_objects.bindings]]

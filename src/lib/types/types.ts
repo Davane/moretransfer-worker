@@ -4,6 +4,7 @@ export interface Env {
 
   // Queues
   QUEUE_WORKER_MAIN: Queue;
+  QUEUE_NOTIFICATIONS: Queue;
 
   // Durable Object
   ZipLocks: DurableObjectNamespace;
@@ -111,10 +112,10 @@ export enum QueueMessageType {
   NOTIFICATION_PROCESS = "notification_process",
 }
 
-interface ZipMessage {
-  type: QueueMessageType.ZIP;
-  data: ZipJob;
-}
+// interface ZipMessage {
+//   type: QueueMessageType.ZIP;
+//   data: ZipJob;
+// }
 
 export interface ZipV2TickMessage {
   type: QueueMessageType.ZIP_V2_TICK;
@@ -131,8 +132,26 @@ export interface NotificationProcessMessage {
   data: { jobId: string; correlationId: string };
 }
 
+export type ProcessJobResult = {
+  jobId: string;
+  status: "sent" | "skipped" | "failed" | "retry";
+  error?: string;
+};
+
+export type ProcessBatchResult = {
+  results: ProcessJobResult[];
+  counts: Record<string, number>;
+  batches: number;
+  requested: number;
+};
+
+export const NOTIFICATION_QUEUE_NAMES = new Set([
+  "yoootransfer-notification-queue-dev",
+  "moretransfer-notification-queue",
+]);
+
 export type QueueMessage =
-  | ZipMessage
+  // | ZipMessage
   | ZipV2TickMessage
   | StreamIngestMessage
   | NotificationProcessMessage;

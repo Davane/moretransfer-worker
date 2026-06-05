@@ -1,5 +1,6 @@
 import {
   Env,
+  NOTIFICATION_QUEUE_NAMES,
   NotificationProcessMessage,
   QueueMessage,
   QueueMessageType,
@@ -12,9 +13,8 @@ import {
 } from "./lib/types/types";
 import { verifyHmac } from "./lib/crypto";
 import { WebAPIService } from "./modules/web-api-service";
-// import { Zipper } from "./modules/zipper";
 import { CronHandler } from "./modules/cron";
-import { processNotificationMessage } from "./modules/notification-processor";
+import { processNotificationBatch } from "./modules/notification-processor";
 import { resolveOutputKey, writeZipManifest, toBool } from "./modules/job-manifest";
 import { JobManagerDO } from "./modules/job-manager-do";
 import { ZipSemaphoreDO } from "./modules/semaphore-do";
@@ -75,10 +75,10 @@ export default {
 
         const useV2 = toBool(env.ZIP_USE_CONTAINERS, false);
         if (!useV2) {
-          const message: QueueMessage = { type: QueueMessageType.ZIP, data: job };
-          console.log("Sending job to queue:", JSON.stringify(message));
-          await env.QUEUE_WORKER_MAIN.send(message);
-          console.log("Job queued", JSON.stringify(message));
+          // const message: QueueMessage = { type: QueueMessageType.ZIP, data: job };
+          // console.log("Sending job to queue:", JSON.stringify(message));
+          // await env.QUEUE_WORKER_MAIN.send(message);
+          // console.log("Job queued", JSON.stringify(message));
         } else {
           // Stable ID so repeated triggers resume the same JobManagerDO state.
           // One ZIP v2 job per transfer.
@@ -212,16 +212,23 @@ export default {
   async queue(batch: MessageBatch<QueueMessage>, env: Env) {
     const webAPIService = new WebAPIService(env.SECRET_KEY, env.WEB_API_BASE_URL);
 
+    console.log(`Processing ${batch.messages.length} messages from queue ${batch.queue}`);
+
+    if (NOTIFICATION_QUEUE_NAMES.has(batch.queue)) {
+      // Handle notification process messages 
+      // from the notification queue in batches
+      await processNotificationBatch(
+        batch.messages as Message<NotificationProcessMessage>[],
+        webAPIService,
+      );
+      return;
+    }
+
     for (const msg of batch.messages) {
-      console.log(`Processing message ${msg.id} from batch`, JSON.stringify(msg.body));
+      console.log(`Processing message ${msg.id} from batch`, JSON.stringify(msg.body.type));
 
       const messageType = msg.body.type;
       switch (messageType) {
-        // Handle ZIP v1 jobs
-        // case QueueMessageType.ZIP:
-        //   await new Zipper(env).zip(msg, webAPIService);
-        //   break;
-
         // Handle ZIP v2 tick messages
         case QueueMessageType.ZIP_V2_TICK:
           await handleZipV2Tick(msg as Message<ZipV2TickMessage>, env);
@@ -230,13 +237,6 @@ export default {
         // Handle video stream ingest jobs
         case QueueMessageType.STREAM_INGEST:
           await new StreamIngestor(env).ingest(msg);
-          break;
-
-        case QueueMessageType.NOTIFICATION_PROCESS:
-          await processNotificationMessage(
-            msg as Message<NotificationProcessMessage>,
-            webAPIService,
-          );
           break;
 
         default:

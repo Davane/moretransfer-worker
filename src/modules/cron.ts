@@ -5,7 +5,8 @@ type ScheduleResponse = {
   jobIds?: string[];
 };
 
-const QUEUE_SEND_BATCH_LIMIT = 25;
+
+const QUEUE_SEND_BATCH_LIMIT = 25; // Max batch limit is 100. 
 
 export class CronHandler {
   constructor(private readonly env: Env) {}
@@ -89,7 +90,7 @@ export class CronHandler {
           },
         }));
 
-        await this.env.QUEUE_WORKER_MAIN.sendBatch(batch);
+        await this.env.QUEUE_NOTIFICATIONS.sendBatch(batch);
       }
     } catch (err) {
       console.error(
