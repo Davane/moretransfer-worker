@@ -12,7 +12,7 @@ import {
 } from "./lib/types/types";
 import { verifyHmac } from "./lib/crypto";
 import { WebAPIService } from "./modules/web-api-service";
-import { Zipper } from "./modules/zipper";
+// import { Zipper } from "./modules/zipper";
 import { CronHandler } from "./modules/cron";
 import { processNotificationMessage } from "./modules/notification-processor";
 import { resolveOutputKey, writeZipManifest, toBool } from "./modules/job-manifest";
@@ -218,9 +218,9 @@ export default {
       const messageType = msg.body.type;
       switch (messageType) {
         // Handle ZIP v1 jobs
-        case QueueMessageType.ZIP:
-          await new Zipper(env).zip(msg, webAPIService);
-          break;
+        // case QueueMessageType.ZIP:
+        //   await new Zipper(env).zip(msg, webAPIService);
+        //   break;
 
         // Handle ZIP v2 tick messages
         case QueueMessageType.ZIP_V2_TICK:

@@ -1,7 +1,8 @@
 import type { NotificationProcessMessage } from "../lib/types/types";
 import { WebAPIService } from "./web-api-service";
 
-const RETRY_DELAY_SECONDS = 30;
+const RETRY_DELAY_SECONDS = 60;
+
 export async function processNotificationMessage(
   msg: Message<NotificationProcessMessage>,
   webAPIService: WebAPIService,

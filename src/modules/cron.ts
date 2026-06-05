@@ -5,6 +5,8 @@ type ScheduleResponse = {
   jobIds?: string[];
 };
 
+const QUEUE_SEND_BATCH_LIMIT = 25;
+
 export class CronHandler {
   constructor(private readonly env: Env) {}
 
@@ -56,10 +58,14 @@ export class CronHandler {
       try {
         payload = JSON.parse(text) as ScheduleResponse;
       } catch (parseErr) {
-        console.error("[notification-schedule] Notification schedule response parse failed:", parseErr, {
-          text,
-          correlationId,
-        });
+        console.error(
+          "[notification-schedule] Notification schedule response parse failed:",
+          parseErr,
+          {
+            text,
+            correlationId,
+          },
+        );
         return;
       }
 
@@ -74,17 +80,23 @@ export class CronHandler {
         correlationId,
       });
 
-      for (const jobId of jobIds) {
-        await this.env.QUEUE_WORKER_MAIN.send({
-          type: QueueMessageType.NOTIFICATION_PROCESS,
-          data: {
-            jobId,
-            correlationId,
+      for (let offset = 0; offset < jobIds.length; offset += QUEUE_SEND_BATCH_LIMIT) {
+        const end = offset + QUEUE_SEND_BATCH_LIMIT;
+        const batch = jobIds.slice(offset, end).map((jobId) => ({
+          body: {
+            type: QueueMessageType.NOTIFICATION_PROCESS,
+            data: { jobId, correlationId },
           },
-        });
+        }));
+
+        await this.env.QUEUE_WORKER_MAIN.sendBatch(batch);
       }
     } catch (err) {
-      console.error("[notification-schedule] Notification schedule request failed:", { correlationId }, err);
+      console.error(
+        "[notification-schedule] Notification schedule request failed:",
+        { correlationId },
+        err,
+      );
     }
   }
 }
