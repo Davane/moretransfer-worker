@@ -1,3 +1,5 @@
+import { Env } from "./types";
+
 /**
  * This file created and verifies HMAC signatures on edge runtime
  */
@@ -63,4 +65,21 @@ function hexToBytes(hex: string): Uint8Array {
     out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   }
   return out;
+}
+
+
+export async function verifyRequest(req: Request, env: Env): Promise<Response | undefined> {
+  if (env.SKIP_REQUEST_VERIFICATION) {
+    console.warn("Skipping request verification");
+    return undefined;
+  }
+
+  try {
+    await verifyHmac(req, env.SECRET_KEY);
+    return undefined;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("HMAC verification failed:", message, error);
+    return new Response("Unauthorized", { status: 401 });
+  }
 }

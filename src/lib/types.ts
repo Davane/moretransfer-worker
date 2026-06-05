@@ -4,9 +4,9 @@ export interface Env {
 
   // Queues
   QUEUE_WORKER_MAIN: Queue;
+  QUEUE_NOTIFICATIONS: Queue;
 
-  // Durable Object
-  ZipLocks: DurableObjectNamespace;
+  // Durable Objects
   JobManager: DurableObjectNamespace;
   ZipSemaphore: DurableObjectNamespace;
   ZipContainer: DurableObjectNamespace;
@@ -21,8 +21,7 @@ export interface Env {
   BASE_RETRY_DELAY_SECONDS: number;
   SKIP_REQUEST_VERIFICATION: boolean | undefined;
 
-  // ZIP v2 (containers)
-  ZIP_USE_CONTAINERS: boolean | undefined;
+  // ZIP (containers)
   ZIP_GLOBAL_CONCURRENCY: string | undefined; // default 1
   ZIP_MANIFEST_PREFIX: string | undefined; // default "manifests"
   ZIP_PART_SIZE_BYTES: string | undefined; // default 134217728 (128 MiB)
@@ -105,14 +104,9 @@ export interface TransferUpdateRequest {
 }
 
 export enum QueueMessageType {
-  ZIP = "zip",
   ZIP_V2_TICK = "zip_v2_tick",
   STREAM_INGEST = "stream_ingest",
-}
-
-interface ZipMessage {
-  type: QueueMessageType.ZIP;
-  data: ZipJob;
+  NOTIFICATION_PROCESS = "notification_process",
 }
 
 export interface ZipV2TickMessage {
@@ -125,7 +119,30 @@ interface StreamIngestMessage {
   data: StreamIngestJob;
 }
 
-export type QueueMessage = ZipMessage | ZipV2TickMessage | StreamIngestMessage;
+export interface NotificationProcessMessage {
+  type: QueueMessageType.NOTIFICATION_PROCESS;
+  data: { jobId: string; correlationId: string };
+}
+
+export type ProcessJobResult = {
+  jobId: string;
+  status: "sent" | "skipped" | "failed" | "retry";
+  error?: string;
+};
+
+export type ProcessBatchResult = {
+  results: ProcessJobResult[];
+  counts: Record<string, number>;
+  batches: number;
+  requested: number;
+};
+
+export const NOTIFICATION_QUEUE_NAMES = new Set([
+  "yoootransfer-notification-queue-dev",
+  "moretransfer-notification-queue",
+]);
+
+export type QueueMessage = ZipV2TickMessage | StreamIngestMessage | NotificationProcessMessage;
 
 
 // ------------------------------------------------------------------------------
@@ -133,7 +150,7 @@ export type QueueMessage = ZipMessage | ZipV2TickMessage | StreamIngestMessage;
 // ------------------------------------------------------------------------------
 
 /**
- * ZIP v2 (containers): centralized lifecycle and retries.
+ * ZIP (containers): centralized lifecycle and retries.
  *
  * `JobManagerDO` is the single scheduler. It owns the SQLite job state and
  * `storage.setAlarm()`, and it is the only place where business backoff and

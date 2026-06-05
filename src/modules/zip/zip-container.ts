@@ -1,5 +1,5 @@
 import { Container } from "@cloudflare/containers";
-import { Env } from "../lib/types/types";
+import { Env } from "../../lib/types";
 
 export { ContainerProxy } from "@cloudflare/containers";
 

@@ -1,4 +1,4 @@
-import { Env } from "../lib/types/types";
+import { Env } from "../../lib/types";
 
 function jsonResponse(obj: unknown, status = 200) {
   return new Response(JSON.stringify(obj), {

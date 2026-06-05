@@ -36,11 +36,17 @@ dead_letter_queue = "yoootransfer-worker-queue-dev-dlq"
 binding = "QUEUE_WORKER_MAIN"
 queue = "yoootransfer-worker-queue-dev"
 
-# Durable Objects
-[[env.dev.durable_objects.bindings]]
-name = "ZipLocks"
-class_name = "ZipLocksDO"
+[[env.dev.queues.consumers]]
+queue = "yoootransfer-notification-queue-dev"
+max_batch_size = 25
+max_retries = 3
+dead_letter_queue = "yoootransfer-worker-queue-dev-dlq"
 
+[[env.dev.queues.producers]]
+binding = "QUEUE_NOTIFICATIONS"
+queue = "yoootransfer-notification-queue-dev"
+
+# Durable Objects
 [[env.dev.durable_objects.bindings]]
 name = "JobManager"
 class_name = "JobManagerDO"
@@ -64,8 +70,7 @@ BASE_RETRY_DELAY_SECONDS = 30
 MAX_ZIP_BYTES = "68719476736" # 100 GiB
 STREAM_REQUIRE_SIGNED_URLS = true
 
-# ZIP v2 (containers)
-ZIP_USE_CONTAINERS = true
+# ZIP (containers)
 ZIP_GLOBAL_CONCURRENCY = "1"
 ZIP_MANIFEST_PREFIX = "manifests"
 ZIP_PART_SIZE_BYTES = "134217728" # 128 MiB
@@ -73,7 +78,7 @@ ZIP_MAX_PARTS_PER_TICK = "8"
 BUNDLE_CLEANUP_TTL_DAYS = 1
 
 # Secret used in the API
-# SECRET_KEY = ""
+SECRET_KEY = "21bc7c5958d0008957b8c62da5a6c0c9fc56f73002ce6000fc49966e02fe4bb9"
 # CLOUDFLARE_ACCOUNT_ID = "" 
 # CLOUDFLARE_STREAM_API_TOKEN = ""
 
@@ -86,9 +91,13 @@ new_classes = ["ZipLocksDO"]
 tag = "v2"
 new_sqlite_classes = ["JobManagerDO", "ZipSemaphoreDO", "ZipContainerDO"]
 
+[[env.dev.migrations]]
+tag = "v3"
+deleted_classes = ["ZipLocksDO"]
+
 # Cron Triggers
 # [env.dev.triggers]
-# crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "0 9 * * *", "*/30 * * * *"]
+# crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "*/15 * * * *"]
 
 # -----------------------------
 # PROD ENVIRONMENT
@@ -125,11 +134,17 @@ dead_letter_queue = "moretransfer-worker-queue-dlq"
 binding = "QUEUE_WORKER_MAIN"
 queue = "moretransfer-worker-queue"
 
-# Durable Objects
-[[env.prod.durable_objects.bindings]]
-name = "ZipLocks"
-class_name = "ZipLocksDO"
+[[env.prod.queues.consumers]]
+queue = "moretransfer-notification-queue"
+max_batch_size = 25
+max_retries = 3
+dead_letter_queue = "moretransfer-worker-queue-dlq"
 
+[[env.prod.queues.producers]]
+binding = "QUEUE_NOTIFICATIONS"
+queue = "moretransfer-notification-queue"
+
+# Durable Objects
 [[env.prod.durable_objects.bindings]]
 name = "JobManager"
 class_name = "JobManagerDO"
@@ -160,8 +175,7 @@ ZIP_OUTPUT_FILE_NAME = "moretransfer_bundle"
 MAX_FILES = "500"
 MAX_ZIP_BYTES = "68719476736" # 64 GiB
 
-# ZIP v2 (containers)
-ZIP_USE_CONTAINERS = true
+# ZIP (containers)
 ZIP_GLOBAL_CONCURRENCY = "3"
 ZIP_MANIFEST_PREFIX = "manifests"
 ZIP_PART_SIZE_BYTES = "134217728" # 128 MiB
@@ -186,6 +200,10 @@ new_classes = ["ZipLocksDO"]
 tag = "v2"
 new_sqlite_classes = ["JobManagerDO", "ZipSemaphoreDO", "ZipContainerDO"]
 
+[[env.prod.migrations]]
+tag = "v3"
+deleted_classes = ["ZipLocksDO"]
+
 # Cron Triggers
 [env.prod.triggers]
-crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "0 9 * * *", "*/30 * * * *"] # expired transfers + abandoned uploads (staggered) + daily expiry + review digest
+crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "*/15 * * * *"] # expired transfers + abandoned uploads (staggered) + notification schedule

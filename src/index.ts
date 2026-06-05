@@ -1,28 +1,25 @@
 import {
   Env,
+  NOTIFICATION_QUEUE_NAMES,
+  NotificationProcessMessage,
   QueueMessage,
   QueueMessageType,
   RequestPath,
-  TransferStatus,
-  ZipJob,
-  ZipV2LifecycleEvent,
   ZipV2TickMessage,
-  ZipV2TickMessageData,
-} from "./lib/types/types";
-import { verifyHmac } from "./lib/crypto";
+} from "./lib/types";
+import { verifyRequest } from "./lib/crypto";
 import { WebAPIService } from "./modules/web-api-service";
-import { Zipper } from "./modules/zipper";
 import { CronHandler } from "./modules/cron";
-import { resolveOutputKey, writeZipManifest, toBool } from "./modules/job-manifest";
-import { JobManagerDO } from "./modules/job-manager-do";
-import { ZipSemaphoreDO } from "./modules/semaphore-do";
-import { ZipContainerDO } from "./modules/zip-container";
-import { ZipLocksDO } from "./modules/ziplock-do-v1";
-import { StreamIngestor } from "./modules/stream-ingestor";
+import { processNotificationBatch } from "./modules/notification/notification-processor";
+import { handleCompressFilesRequest, processZipTick } from "./modules/zip/zip-processor";
+import { JobManagerDO } from "./modules/zip/job-manager-do";
+import { ZipSemaphoreDO } from "./modules/zip/semaphore-do";
+import { ZipContainerDO } from "./modules/zip/zip-container";
+import { StreamIngestor } from "./modules/stream/stream-ingestor";
 
 // Export the Durable Objects for use in other files
 export { ContainerProxy } from "@cloudflare/containers";
-export { JobManagerDO, ZipSemaphoreDO, ZipContainerDO, ZipLocksDO };
+export { JobManagerDO, ZipSemaphoreDO, ZipContainerDO };
 
 export default {
   /**
@@ -38,135 +35,24 @@ export default {
     const url = new URL(req.url);
     console.log(`Executing worker for url ${url.pathname}`);
 
-    if (![RequestPath.COMPRESS_FILES, RequestPath.STREAM_INGEST].includes(url.pathname as any)) {
-      return new Response(undefined, { status: 404 });
-    }
-
-    if (env.SKIP_REQUEST_VERIFICATION) {
-      console.warn("Skipping request verification");
-    } else {
-      try {
-        await verifyHmac(req, env.SECRET_KEY);
-      } catch (error: any) {
-        console.error("HMAC verification failed:", error?.message, error);
-        return new Response("Unauthorized", { status: 401 });
-      }
+    const authError = await verifyRequest(req, env);
+    if (authError) {
+      return authError;
     }
 
     try {
-      if (url.pathname === RequestPath.COMPRESS_FILES) {
-        const body = await req.json<ZipJob>();
-        console.log("Compressing files:", JSON.stringify(body));
-
-        if (!body.objectPrefix) {
-          return new Response("Missing prefix", { status: 400 });
-        }
-
-        const job: ZipJob = {
-          transferId: body.transferId,
-          objectPrefix: body.objectPrefix,
-          zipOutputKey: body.zipOutputKey,
-          includeEmpty: body.includeEmpty ?? true,
-          createdBy: body.createdBy ?? "api",
-          files: body.files,
-        };
-
-        const useV2 = toBool(env.ZIP_USE_CONTAINERS, false);
-        if (!useV2) {
-          const message: QueueMessage = { type: QueueMessageType.ZIP, data: job };
-          console.log("Sending job to queue:", JSON.stringify(message));
-          await env.QUEUE_WORKER_MAIN.send(message);
-          console.log("Job queued", JSON.stringify(message));
-        } else {
-          // Stable ID so repeated triggers resume the same JobManagerDO state.
-          // One ZIP v2 job per transfer.
-          const jobId = job.transferId;
-          const outputKey = resolveOutputKey(env, job);
-
-          // Idempotent start: if the output already exists, do not restart work.
-          const existingOut = await env.OUTPUT_BUCKET.head(outputKey);
-          if (existingOut) {
-            console.log(`[zip-v2] Output already exists; skipping start.`, {
-              jobId,
-              transferId: job.transferId,
-              outputKey,
-              outputBytes: existingOut.size,
-            });
-
-            // Notify the Web API that the job is done
-            const webAPIService = new WebAPIService(env.SECRET_KEY, env.WEB_API_BASE_URL);
-            try {
-              await webAPIService.updateTransferStatus(job.transferId, {
-                status: TransferStatus.READY,
-                bundleObjectKey: outputKey,
-              });
-            } catch (e) {
-              console.warn(`[zip-v2] Failed to reconcile transfer status (output exists path)`, {
-                error: e,
-                jobId,
-                transferId: job.transferId,
-                outputKey,
-              });
-            }
-
-            return new Response("Enqueued", { status: 202 });
-          }
-
-          const { manifestKey } = await writeZipManifest({
-            env,
-            jobId,
-            zipJob: job,
-            outputKey,
-          });
-
-          // Start a new zip v2 job by forwarding to JobManagerDO
-          const jobManagerId = env.JobManager.idFromName(jobId);
-          const jobManager = env.JobManager.get(jobManagerId);
-
-          const resp = await jobManager.fetch("https://job/start", {
-            method: "POST",
-            body: JSON.stringify({
-              jobId,
-              transferId: job.transferId,
-              manifestKey,
-              outputKey,
-            }),
-          });
-
-          if (!resp.ok) {
-            throw new Error(`Failed to start zip v2 job: ${resp.status} ${await resp.text()}`);
-          }
-
-          // Enqueue a tick message to the queue to start the zip v2 job
-          const tick: ZipV2TickMessageData = { jobId };
-          const message: QueueMessage = {
-            type: QueueMessageType.ZIP_V2_TICK,
-            data: tick,
-          };
-          console.log("Sending zip v2 tick to queue:", JSON.stringify(message));
-
-          await env.QUEUE_WORKER_MAIN.send(message);
-          console.log("Zip v2 job queued", JSON.stringify({ jobId, manifestKey, outputKey }));
-        }
-      } else if (url.pathname === RequestPath.STREAM_INGEST) {
-        const body = await req.json<any>();
-        console.log("Stream ingest request:", JSON.stringify(body));
-
-        if (!body?.transferId || !body?.fileId || !body?.r2PresignedGetUrl) {
-          return new Response("Missing required fields", { status: 400 });
-        }
-
-        const message: QueueMessage = { type: QueueMessageType.STREAM_INGEST, data: body };
-        console.log("Sending stream ingest job to queue:", JSON.stringify(message));
-        await env.QUEUE_WORKER_MAIN.send(message);
-        console.log("Stream ingest job queued", JSON.stringify(message));
+      switch (url.pathname) {
+        case RequestPath.COMPRESS_FILES:
+          return await handleCompressFilesRequest(req, env);
+        case RequestPath.STREAM_INGEST:
+          return await StreamIngestor.handleStreamIngestRequest(req, env);
+        default:
+          return new Response(undefined, { status: 404 });
       }
     } catch (error) {
       console.error("Failed to enqueue job:", error);
       return new Response("Failed to enqueue job", { status: 500 });
     }
-
-    return new Response("Enqueued", { status: 202 });
   },
 
   /**
@@ -196,15 +82,9 @@ export default {
         break;
       }
 
-      // Daily at 9 AM UTC
-      case "0 9 * * *": {
-        ctx.waitUntil(cronHandler.handleExpiryReminderCron(webAPIService, now));
-        break;
-      }
-
-      // Every 30 minutes
-      case "*/30 * * * *": {
-        ctx.waitUntil(cronHandler.handleReviewCommentDigestCron(webAPIService, now));
+      // Every 15 minutes — notification schedule (transfer expiry, review digest, etc.)
+      case "*/15 * * * *": {
+        ctx.waitUntil(cronHandler.handleNotificationScheduleCron(webAPIService, now));
         break;
       }
 
@@ -213,25 +93,33 @@ export default {
     }
   },
 
+  /**
+   * Queue consumer: processes messages from the queue.
+   * @param batch - The batch of messages to process
+   * @param env - The environment variables
+   */
   async queue(batch: MessageBatch<QueueMessage>, env: Env) {
     const webAPIService = new WebAPIService(env.SECRET_KEY, env.WEB_API_BASE_URL);
 
+    console.log(`Processing ${batch.messages.length} messages from queue ${batch.queue}`);
+
+    if (NOTIFICATION_QUEUE_NAMES.has(batch.queue)) {
+      await processNotificationBatch(
+        batch.messages as Message<NotificationProcessMessage>[],
+        webAPIService,
+      );
+      return;
+    }
+
     for (const msg of batch.messages) {
-      console.log(`Processing message ${msg.id} from batch`, JSON.stringify(msg.body));
+      console.log(`Processing message ${msg.id} from batch`, JSON.stringify(msg.body.type));
 
       const messageType = msg.body.type;
       switch (messageType) {
-        // Handle ZIP v1 jobs
-        case QueueMessageType.ZIP:
-          await new Zipper(env).zip(msg, webAPIService);
-          break;
-
-        // Handle ZIP v2 tick messages
         case QueueMessageType.ZIP_V2_TICK:
-          await handleZipV2Tick(msg as Message<ZipV2TickMessage>, env);
+          await processZipTick(msg as Message<ZipV2TickMessage>, env);
           break;
 
-        // Handle video stream ingest jobs
         case QueueMessageType.STREAM_INGEST:
           await new StreamIngestor(env).ingest(msg);
           break;
@@ -244,55 +132,3 @@ export default {
     }
   },
 };
-
-// ------------------------------------------------------------------------------
-// Helper functions
-// ------------------------------------------------------------------------------
-
-/**
- * Trigger-only ZIP v2 tick.
- *
- * Forwards work to `JobManagerDO`. Retry/backoff is handled inside the DO
- * via `nextActionAtMs` and alarms, not here.
- *
- * Queue `retry()` should only be used for infrastructure failures, such as
- * RPC errors, an unreachable DO, or non-2xx responses.
- *
- * Always `ack()` after a successful DO response, even if the JSON body fails
- * to parse. The job may still have progressed.
- */
-async function handleZipV2Tick(msg: Message<ZipV2TickMessage>, env: Env) {
-  const { jobId } = msg.body.data;
-  try {
-    const id = env.JobManager.idFromName(jobId);
-    const stub = env.JobManager.get(id);
-    const resp = await stub.fetch("https://job/tick", {
-      method: "POST",
-      body: JSON.stringify({ jobId }),
-    });
-
-    if (!resp.ok) {
-      throw new Error(`JobManager tick failed: ${resp.status} ${await resp.text()}`);
-    }
-
-    try {
-      await resp.json();
-    } catch (parseErr: unknown) {
-      const errMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-      console.error(`[zip-v2] tick JSON parse failed. Ack message to allow job to progress.`, {
-        jobId,
-        error: errMsg,
-        event: "tick.consumer.failure" satisfies ZipV2LifecycleEvent,
-      });
-    }
-
-    msg.ack();
-  } catch (e) {
-    console.error("[zip-v2] tick failed (infrastructure):", {
-      jobId,
-      error: e,
-      event: "tick.consumer.failure" satisfies ZipV2LifecycleEvent,
-    });
-    msg.retry({ delaySeconds: 30 });
-  }
-}

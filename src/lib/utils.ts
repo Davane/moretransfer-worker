@@ -1,4 +1,4 @@
-import { Checkpoint, ErrorKind } from "./types/types";
+import { Checkpoint, ErrorKind } from "./types";
 
 export function slugify(text: string) {
   return text
