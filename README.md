@@ -108,6 +108,7 @@ Set in `wrangler.toml` per environment (`dev` / `prod`) or via the Cloudflare da
 | `0 */3 * * *` | Cleanup expired transfers |
 | `0 1,7,13,19 * * *` | Cleanup abandoned uploads (staggered from expired cleanup) |
 | `*/15 * * * *` | Notification schedule → enqueue `notification_process` jobs |
+| `30 1 * * *` | Signed daily Web API actions (partner-benefit expiry, up to 500 rows) |
 
 ## Installation
 
@@ -207,7 +208,15 @@ npm run dev:cron
 npm run cron:cleanup
 npm run cron:abandoned-uploads
 npm run cron:notifications
+npm run cron:daily
 ```
+
+The daily request calls `POST /api/external/cron/24hrs` using the existing shared
+`SECRET_KEY`. Start the Next.js app on the configured `WEB_API_BASE_URL` first.
+Daily actions live in the API route, so adding an action does not require another
+worker schedule. Failed HTTP/network requests reject the scheduled task; API logs
+include per-action results and expiry backlog (`hasMore`). Deploy the API before
+the worker. Production runs at 01:30 UTC.
 
 ### Typecheck
 

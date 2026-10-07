@@ -79,12 +79,21 @@ export default {
       // Every 6 hours at 01:00, 07:00, 13:00, 19:00 UTC (offset from */3 cleanup so both runs don't overlap)
       case "0 1,7,13,19 * * *": {
         ctx.waitUntil(cronHandler.handleCleanupAbandonedUploadsCron(webAPIService, now));
+
+        // // Retryable account deletion processing.
+        // ctx.waitUntil(cronHandler.handleAccountDeletionCron(webAPIService, now));
         break;
       }
 
-      // Every 15 minutes — notification schedule (transfer expiry, review digest, etc.)
+      // Every 15 minutes — notifications
       case "*/15 * * * *": {
         ctx.waitUntil(cronHandler.handleNotificationScheduleCron(webAPIService, now));
+        break;
+      }
+
+      // Every day at 01:30 UTC (Every 24 Hours)
+      case "30 1 * * *": {
+        ctx.waitUntil(cronHandler.handle24HourCron(webAPIService, now));
         break;
       }
 

@@ -108,6 +108,28 @@ class WebAPIService {
     });
   }
 
+  // async sendAccountDeletionProcessRequest(body: Record<string, unknown>) {
+  //   const url = `${this._baseUrl}/api/external/account-deletions/process`;
+  //   const headers = await this.getHeaderSignature(body);
+
+  //   return await fetch(url, {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json", ...headers },
+  //     body: JSON.stringify(body),
+  //   });
+  // }
+
+  async send24HourCronRequest(body: Record<string, unknown>): Promise<Response> {
+    const url = `${this._baseUrl}/api/external/cron/24hrs`;
+    const headers = await this.getHeaderSignature(body);
+
+    return await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+  }
+
   async sendNotificationProcessRequest(body: Record<string, unknown>, correlationId: string) {
     const url = `${this._baseUrl}/api/external/notifications/process`;
     const headers = await this.getHeaderSignature(body);

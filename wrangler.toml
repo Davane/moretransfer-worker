@@ -206,4 +206,4 @@ deleted_classes = ["ZipLocksDO"]
 
 # Cron Triggers
 [env.prod.triggers]
-crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "*/15 * * * *"] # expired transfers + abandoned uploads (staggered) + notification schedule
+crons = ["0 */3 * * *", "0 1,7,13,19 * * *", "*/15 * * * *", "30 1 * * *"] # expired transfers + abandoned uploads (staggered) + notifications/account deletions

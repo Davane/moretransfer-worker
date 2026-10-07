@@ -100,4 +100,44 @@ export class CronHandler {
       );
     }
   }
+
+  // async handleAccountDeletionCron(webAPIService: WebAPIService, timestamp: number) {
+  //   const body = { trigger: "scheduled", timestamp };
+
+  //   try {
+  //     const response = await webAPIService.sendAccountDeletionProcessRequest(body);
+  //     const text = await response.text();
+  //     if (!response.ok) {
+  //       console.error("[account-deletion] Processing request failed", {
+  //         status: response.status,
+  //         text,
+  //       });
+  //       return;
+  //     }
+
+  //     console.log("[account-deletion] Processing response", {
+  //       status: response.status,
+  //       text,
+  //     });
+  //   } catch (error) {
+  //     console.error("[account-deletion] Processing request failed", error);
+  //   }
+  // }
+
+  /** Rejections reach waitUntil so HTTP, network, and invalid-response failures are observable. */
+  async handle24HourCron(webAPIService: WebAPIService, timestamp: number): Promise<void> {
+    const body = { trigger: "scheduled", timestamp };
+
+    try {
+      const response = await webAPIService.send24HourCronRequest(body);
+      if (!response.ok) {
+        throw new Error(`Daily API request failed with status ${response.status}`);
+      }
+      const summary: unknown = await response.json();
+      console.log("[24-hour-cron] Completed", { status: response.status, summary });
+    } catch (error) {
+      console.error("[24-hour-cron] Processing request failed", error);
+      throw error;
+    }
+  }
 }
